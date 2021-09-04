@@ -5,39 +5,45 @@ use crate::error::Result;
 /// A trait to represent a JS engine.
 pub(crate) trait JsEngine: Sized {
     /// The type of a JS value.
-    type JsValue: JsValue;
+    type JsValue<'a>: JsValue<'a>;
 
     /// Create a JS engine.
     fn new() -> Result<Self>;
 
     /// Evaluate arbitrary code in the JS engine.
-    fn eval(&mut self, code: &str) -> Result<Self::JsValue>;
+    fn eval<'a>(&'a self, code: &str) -> Result<Self::JsValue<'a>>;
 
     /// Call a JS function in the JS engine.
-    fn call_function(
-        &mut self,
+    fn call_function<'a>(
+        &'a self,
         func_name: &str,
-        args: impl Iterator<Item = Self::JsValue>,
-    ) -> Result<Self::JsValue>;
+        args: impl Iterator<Item = Self::JsValue<'a>>,
+    ) -> Result<Self::JsValue<'a>>;
+
+    /// Create a JS value `null`.
+    fn null<'a>(&'a self) -> Self::JsValue<'a>;
+
+    /// Create a JS value from [`bool`].
+    fn from_bool<'a>(&'a self, input: bool) -> Self::JsValue<'a>;
+
+    /// Create a JS value from [`i32`].
+    fn from_int<'a>(&'a self, input: i32) -> Self::JsValue<'a>;
+
+    /// Create a JS value from [`f64`].
+    fn from_float<'a>(&'a self, input: f64) -> Self::JsValue<'a>;
+    
+    /// Create a JS value from [`String`].
+    fn from_string<'a>(&'a self, input: String) -> Self::JsValue<'a>;
+
+    /// Create a JS array value from an iterator for `Self`.
+    fn from_array<'a>(&'a self, input: impl Iterator<Item = Self::JsValue<'a>>) -> Self::JsValue<'a>;
+    
+    /// Create a JS object value from an iterator for `(String, Self)`.
+    fn from_object<'a>(&'a self, input: impl Iterator<Item = (String, Self::JsValue<'a>)>) -> Self::JsValue<'a>;
 }
 
 /// A trait to represent a JS value.
-pub(crate) trait JsValue: Sized + Clone {
-    /// Create a JS value `null`.
-    fn null() -> Self;
-    /// Create a JS value from [`bool`].
-    fn from_bool(input: bool) -> Self;
-    /// Create a JS value from [`i32`].
-    fn from_int(input: i32) -> Self;
-    /// Create a JS value from [`f64`].
-    fn from_float(input: f64) -> Self;
-    /// Create a JS value from [`String`].
-    fn from_string(input: String) -> Self;
-    /// Create a JS array value from an iterator for `Self`.
-    fn from_array(input: impl Iterator<Item = Self>) -> Self;
-    /// Create a JS object value from an iterator for `(String, Self)`.
-    fn from_object(input: impl Iterator<Item = (String, Self)>) -> Self;
-
+pub(crate) trait JsValue<'a>: Sized + Clone {
     /// Check whether the JS value is `null`.
     fn is_null(&self) -> bool;
     /// Check whether the JS value is a [`bool`].

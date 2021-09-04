@@ -18,6 +18,7 @@
 //! let html_in_display_mode = katex::render_with_opts("E = mc^2", &opts).unwrap();
 //! ```
 
+#![feature(generic_associated_types)]
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
@@ -46,8 +47,11 @@ thread_local! {
 }
 
 /// Initialize KaTeX js environment.
-fn init_katex<Engine: JsEngine>() -> Result<RefCell<Engine>> {
-    let mut engine = Engine::new()?;
+fn init_katex<Engine>() -> Result<RefCell<Engine>>
+where
+    Engine: JsEngine,
+{
+    let engine = Engine::new()?;
     engine.eval(KATEX_SRC)?;
     engine.eval(MHCHEM_SRC)?;
     engine.eval(
@@ -58,15 +62,18 @@ fn init_katex<Engine: JsEngine>() -> Result<RefCell<Engine>> {
 
 /// Render LaTeX equation to HTML using specified [engine](`JsEngine`) and [options](`Opts`).
 #[inline]
-fn render_inner<Engine: JsEngine>(
-    engine: &mut Engine,
+fn render_inner<'a, Engine>(
+    engine: &'a mut Engine,
     input: &str,
     opts: impl AsRef<Opts>,
-) -> Result<String> {
+) -> Result<String>
+where
+    Engine: JsEngine,
+{
     use core::iter;
 
-    let input = Engine::JsValue::from_string(input.to_owned());
-    let opts: Engine::JsValue = opts.as_ref().to_js_value();
+    let input = engine.from_string(input.to_owned());
+    let opts = opts.as_ref().to_js_value(engine);
     let args = iter::once(input).chain(iter::once(opts));
     engine.call_function("renderToString", args)?.into_string()
 }

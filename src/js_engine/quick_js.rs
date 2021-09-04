@@ -11,22 +11,52 @@ use crate::{
 pub struct Engine(quick_js::Context);
 
 impl JsEngine for Engine {
-    type JsValue = Value;
+    type JsValue<'a> = Value;
 
     fn new() -> Result<Self> {
         Ok(Self(quick_js::Context::new()?))
     }
 
-    fn eval(&mut self, code: &str) -> Result<Self::JsValue> {
+    fn eval<'a>(&'a self, code: &str) -> Result<Self::JsValue<'a>> {
         Ok(Value(self.0.eval(code)?))
     }
 
-    fn call_function(
-        &mut self,
+    fn call_function<'a>(
+        &'a self,
         func_name: &str,
-        args: impl Iterator<Item = Self::JsValue>,
-    ) -> Result<Self::JsValue> {
+        args: impl Iterator<Item = Self::JsValue<'a>>,
+    ) -> Result<Self::JsValue<'a>> {
         Ok(Value(self.0.call_function(func_name, args.map(|v| v.0))?))
+    }
+
+    fn null<'a>(&'a self) -> Self::JsValue<'a> {
+        Value(quick_js::JsValue::Null)
+    }
+
+    fn from_bool<'a>(&'a self, input: bool) -> Self::JsValue<'a> {
+        Value(quick_js::JsValue::Bool(input))
+    }
+
+    fn from_int<'a>(&'a self, input: i32) -> Self::JsValue<'a> {
+        Value(quick_js::JsValue::Int(input))
+    }
+
+    fn from_float<'a>(&'a self, input: f64) -> Self::JsValue<'a> {
+        Value(quick_js::JsValue::Float(input))
+    }
+    
+    fn from_string<'a>(&'a self, input: String) -> Self::JsValue<'a> {
+        Value(quick_js::JsValue::String(input))
+    }
+
+    fn from_array<'a>(&'a self, input: impl Iterator<Item = Self::JsValue<'a>>) -> Self::JsValue<'a> {
+        let array = input.into_iter().map(|v| v.0).collect();
+        Value(quick_js::JsValue::Array(array))
+    }
+    
+    fn from_object<'a>(&'a self, input: impl Iterator<Item = (String, Self::JsValue<'a>)>) -> Self::JsValue<'a> {
+        let obj = input.into_iter().map(|(k, v)| (k, v.0)).collect();
+        Value(quick_js::JsValue::Object(obj))
     }
 }
 
@@ -34,37 +64,7 @@ impl JsEngine for Engine {
 #[derive(Debug, Clone)]
 pub struct Value(quick_js::JsValue);
 
-impl JsValue for Value {
-    fn null() -> Self {
-        Self(quick_js::JsValue::Null)
-    }
-
-    fn from_bool(input: bool) -> Self {
-        Self(quick_js::JsValue::Bool(input))
-    }
-
-    fn from_int(input: i32) -> Self {
-        Self(quick_js::JsValue::Int(input))
-    }
-
-    fn from_float(input: f64) -> Self {
-        Self(quick_js::JsValue::Float(input))
-    }
-
-    fn from_string(input: String) -> Self {
-        Self(quick_js::JsValue::String(input))
-    }
-
-    fn from_array(input: impl Iterator<Item = Self>) -> Self {
-        let array = input.into_iter().map(|v| v.0).collect();
-        Self(quick_js::JsValue::Array(array))
-    }
-
-    fn from_object(input: impl Iterator<Item = (String, Self)>) -> Self {
-        let obj = input.into_iter().map(|(k, v)| (k, v.0)).collect();
-        Self(quick_js::JsValue::Object(obj))
-    }
-
+impl<'a> JsValue<'a> for Value {
     fn is_null(&self) -> bool {
         matches!(self.0, quick_js::JsValue::Null)
     }
